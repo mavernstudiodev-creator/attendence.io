@@ -15,13 +15,19 @@ function pageLines(content: {items: unknown[]}) {
  }
  return rows.sort((a,b)=>b.y-a.y).map(row=>row.items.sort((a,b)=>a.x-b.x).map(item=>item.text).join(' ').trim()).filter(Boolean).join('\n');
 }
-export async function extractPdfText(file:File):Promise<{text:string;usedOcr:boolean}>{
- const doc=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise, pages:string[]=[];
- for(let n=1;n<=doc.numPages;n++){const page=await doc.getPage(n);pages.push(pageLines(await page.getTextContent()))}
+export async function extractTimetableText(file:File):Promise<{text:string;usedOcr:boolean}> {
+ const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
+ if(!isPdf){
+  const worker=await createWorker('eng');
+  try { const result=await worker.recognize(file); return {text:result.data.text,usedOcr:true}; }
+  finally { await worker.terminate(); }
+ }
+ const doc=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise,pages:string[]=[];
+ for(let n=1;n<=doc.numPages;n++){const page=await doc.getPage(n);pages.push(pageLines(await page.getTextContent()));}
  let text=pages.join('\n');
- if(parseTimetableText(text).length)return{text,usedOcr:false};
+ if(parseTimetableText(text).length)return {text,usedOcr:false};
  const worker=await createWorker('eng');
- try{
+ try {
   const output:string[]=[];
   for(let n=1;n<=doc.numPages;n++){
    const page=await doc.getPage(n),viewport=page.getViewport({scale:1.7}),canvas=document.createElement('canvas');
@@ -29,9 +35,10 @@ export async function extractPdfText(file:File):Promise<{text:string;usedOcr:boo
    const context=canvas.getContext('2d');
    if(!context)throw new Error('Your browser could not prepare this PDF page for OCR.');
    await page.render({canvasContext:context,canvas,viewport}).promise;
-   output.push((await worker.recognize(canvas)).data.text);canvas.width=0;canvas.height=0;
+   output.push((await worker.recognize(canvas)).data.text);
+   canvas.width=0;canvas.height=0;
   }
   text=output.join('\n');
- }finally{await worker.terminate()}
- return{text,usedOcr:true};
+ } finally {await worker.terminate();}
+ return {text,usedOcr:true};
 }
