@@ -1,5 +1,6 @@
 export type TimetableDraft={id:string;day:string;subject:string;start:string;end:string;room?:string};
 export type OcrWord={text:string;bbox:{x0:number;y0:number;x1:number;y1:number}};
+export function flattenOcrBlocks(value:unknown):OcrWord[]{const blocks=Array.isArray(value)?value as {paragraphs?:{lines?:{words?:OcrWord[]}[]}[]}[]:[];return blocks.flatMap(block=>(block.paragraphs||[]).flatMap(paragraph=>(paragraph.lines||[]).flatMap(line=>line.words||[]))).filter(word=>typeof word.text==='string'&&!!word.bbox&&Number.isFinite(word.bbox.x0)&&Number.isFinite(word.bbox.y0))}
 const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const dayPattern=/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)\b/i;
 const timePattern=/\b(\d{1,2})(?::|\.)(\d{2})\s*(a\.?m\.?|p\.?m\.?)?\b/gi;
