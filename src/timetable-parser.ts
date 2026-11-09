@@ -20,10 +20,8 @@ export function parseTimetableGridWords(words:OcrWord[]):TimetableDraft[]{
   ||lines.find(line=>line.words.filter(w=>parseOcrTime(w.text)).length>=8);
  if(!header)return [];
  const timeWords=header.words.filter(w=>parseOcrTime(w.text)).sort((a,b)=>center(a).x-center(b).x);
- const times:{value:number;x:number}[]=[];
- for(const w of timeWords){const t=parseOcrTime(w.text);if(!t)continue;let value=t.h*60+t.min;if(times.length){while(value<=times[times.length-1].value)value+=720;}times.push({value,x:center(w).x})}
- const periods:{start:number;end:number;x:number}[]=[];
- for(let i=0;i<times.length-1;i++){const start=times[i].value,end=times[i+1].value,duration=end-start;if(duration<=30||duration>180)continue;periods.push({start,end,x:(times[i].x+times[i+1].x)/2})}
+ const periods:{start:number;end:number;x:number}[]=[];let dayOffset=0,previousStart=-1;
+ for(let i=0;i+1<timeWords.length;i+=2){const first=parseOcrTime(timeWords[i].text),second=parseOcrTime(timeWords[i+1].text);if(!first||!second)continue;let start=first.h*60+first.min+dayOffset,end=second.h*60+second.min+dayOffset;if(previousStart>=0&&start<previousStart){dayOffset+=720;start+=720;end+=720}if(end<=start)end+=720;const duration=end-start;if(duration>30&&duration<=180)periods.push({start,end,x:(center(timeWords[i]).x+center(timeWords[i+1]).x)/2});previousStart=start}
  if(periods.length<3)return [];
  const dayWords=valid.map(word=>({word,day:dayFromWord(word.text),...center(word)})).filter(x=>x.day&&x.y>header.y);
  const dayLabels=dayWords.sort((a,b)=>a.y-b.y).filter((item,index,array)=>array.findIndex(x=>x.day===item.day)===index);
